@@ -2,14 +2,9 @@ package mysql
 
 import (
 	"aws-golang-lambda/entity"
-	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
-)
-
-const (
-	usersTable = "users"
 )
 
 type MysqlDB struct {
@@ -24,8 +19,7 @@ func NewMysqlDB(db *sqlx.DB) *MysqlDB {
 
 func (s *MysqlDB) GetUser(username string) (details entity.User, err error) {
 	var users []Users
-	query := fmt.Sprintf("SELECT * FROM %s WHERE username = '%s'", usersTable, username)
-	err = s.db.Select(&users, query)
+	err = s.db.Select(&users, "SELECT * FROM users WHERE username=?", username)
 	if err != nil {
 		return details, err
 	}
@@ -40,7 +34,6 @@ func (s *MysqlDB) GetUser(username string) (details entity.User, err error) {
 func (s *MysqlDB) AddUser(details entity.User) (err error) {
 	user := Users(details)
 
-	query := fmt.Sprintf("INSERT INTO %s (username, password, first_name, last_name, address) VALUES (:username, :password, :first_name, :last_name, :address)", usersTable)
-	_, err = s.db.NamedExec(query, &user)
+	_, err = s.db.NamedExec("INSERT INTO users (username, password, first_name, last_name, address) VALUES (:username, :password, :first_name, :last_name, :address)", &user)
 	return err
 }
