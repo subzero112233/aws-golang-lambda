@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: api authorizer
+Resources:
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda_handler
+      FunctionName: authorizer
+      Runtime: go1.x
+      CodeUri: ./
+      MemorySize: 128
+      Timeout: 300
+      Environment:
+        Variables:
+          JWT_SECRET: t0k3n      
+  LambdaFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: LambdaFunction
+    Properties:
+      RetentionInDays: 14
+      LogGroupName:
+        Fn::Join:
+          - ''
+          - - /aws/lambda/
+            - Ref: LambdaFunction
+  LambdazerArnParameter:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: /demoapp/lambda_authorizer/arn
+      Type: "String"
+      Value: 
+        Fn::Join:
+          - ''
+          - - 'arn:aws:apigateway:'
+            - Ref: AWS::Region
+            - ":lambda:path/2015-03-31/functions/"
+            - Fn::GetAtt:
+                - LambdaFunction
+                - Arn
+            - "/invocations"
+  LambdaFunctionArnParameter:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: /demoapp/lambda_authorizer/function_arn
+      Type: "String"
+      Value: !GetAtt LambdaFunction.Arn
+
+

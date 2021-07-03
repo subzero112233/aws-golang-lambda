@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+  APIG:
+    Type: AWS::ApiGateway::RestApi
+    DependsOn: LogGroup
+    Properties:
+      ApiKeySourceType: HEADER
+      Name: api.demoapp.com
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+      LogGroupName: /aws/apigateway/api.demoapp.com 
+  ApiGatewayAuthorizerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "apigateway.amazonaws.com"
+            Action:
+              - sts:AssumeRole
+      Policies:
+        -
+          PolicyName: "InvokeAuthorizerFunction"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action:
+                  - lambda:InvokeAsync
+                  - lambda:InvokeFunction
+                Resource: "{{resolve:ssm:/demoapp/lambda_authorizer/function_arn:1}}"
+  ApiGatewayIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ''
+            Effect: 'Allow'
+            Principal:
+              Service:
+                - 'apigateway.amazonaws.com'
+            Action:
+              - 'sts:AssumeRole'
+      Path: '/'
+      Policies:
+        - PolicyName: LambdaAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action: 'lambda:*'
+                Resource: '*'                
+  Authorizer:
+    DependsOn: APIG
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      AuthorizerCredentials: !GetAtt
+        - ApiGatewayAuthorizerRole
+        - Arn
+      AuthorizerResultTtlInSeconds: '300'
+      AuthorizerUri: "{{resolve:ssm:/demoapp/lambda_authorizer/arn:1}}"
+      Type: REQUEST
+      IdentitySource: method.request.header.Authorization
+      Name: AWSDemoAppAuthorizer
+      RestApiId: !Ref APIG
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - APIG
+      - UsersAnyMethodResource
+    Properties:
+      Description: API Deployment
+      RestApiId: !Ref APIG
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    DependsOn: ApiGatewayDeployment
+    Properties:
+      TracingEnabled: true
+      DeploymentId: !Ref ApiGatewayDeployment
+      Description: API Stage
+      RestApiId: !Ref APIG
+      StageName: 'deploy'
+      AccessLogSetting:
+        DestinationArn: !GetAtt
+          - LogGroup
+          - Arn
+  GatewayResponseDefault4XX:
+    DependsOn: APIG
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'*'"
+      ResponseType: DEFAULT_4XX
+      RestApiId:
+        Ref: 'APIG'
+  UsersResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref APIG
+      ParentId: !GetAtt
+        - APIG
+        - RootResourceId      
+      PathPart: users 
+  UsersProxyResource:
+    Type: 'AWS::ApiGateway::Resource'
+    Properties:
+      RestApiId: !Ref APIG
+      ParentId: !Ref UsersResource
+      PathPart: '{proxy+}'
+  UsersAnyMethodResource:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Credentials: !GetAtt ApiGatewayIamRole.Arn
+        Type: AWS_PROXY
+        Uri: "{{resolve:ssm:/demoapp/users_lambda/arn:1}}"
+        IntegrationHttpMethod: POST
+      HttpMethod: ANY
+      ResourceId: !Ref UsersResource
+      RestApiId: !Ref APIG
+  UsersAnyProxyMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      Integration:
+        Credentials: !GetAtt ApiGatewayIamRole.Arn
+        Type: AWS_PROXY
+        Uri: "{{resolve:ssm:/demoapp/users_lambda/arn:1}}"
+        IntegrationHttpMethod: POST
+      HttpMethod: ANY
+      ResourceId: !Ref UsersProxyResource
+      RestApiId: !Ref APIG
+  HelloResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref APIG
+      ParentId: !GetAtt
+        - APIG
+        - RootResourceId
+      PathPart: hello
+  HelloAnyMethodResource:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      ApiKeyRequired: false
+      Integration:
+        Credentials: !GetAtt ApiGatewayIamRole.Arn
+        Type: AWS_PROXY
+        Uri: "{{resolve:ssm:/demoapp/users_lambda/arn:1}}"
+        IntegrationHttpMethod: POST 
+      HttpMethod: ANY
+      ResourceId: !Ref HelloResource
+      RestApiId: !Ref APIG
+Outputs:
+  Endpoint:
+    Description: "API endpoint"
+    Value: !Sub "https://${APIG}.execute-api.${AWS::Region}.amazonaws.com/deploy/" 

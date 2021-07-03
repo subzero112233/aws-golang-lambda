@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: sign in lambda
+Resources:
+  LambdaFunction:
+    Depends: UsersTable
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda_handler
+      FunctionName: demoapp-sign-in
+      Runtime: go1.x
+      CodeUri: ./
+      MemorySize: 256
+      Timeout: 300
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref UsersTable
+          JWT_SECRET: t0k3n
+      Policies:
+        - Statement:
+            - Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+              Effect: Allow
+              Resource:
+                - !GetAtt UsersTable.Arn
+  LambdaFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: LambdaFunction
+    Properties:
+      RetentionInDays: 14
+      LogGroupName:
+        Fn::Join:
+          - ''
+          - - /aws/lambda/
+            - Ref: LambdaFunction
+  UsersTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: username
+          AttributeType: S
+      KeySchema:
+        - AttributeName: username
+          KeyType: HASH
+      TableName: 'users-table'
+      BillingMode: PAY_PER_REQUEST
+  LambdaArnParameter:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: /demoapp/users_lambda/arn
+      Type: "String"
+      Value:
+        Fn::Join:
+          - ''
+          - - 'arn:aws:apigateway:'
+            - Ref: AWS::Region
+            - ":lambda:path/2015-03-31/functions/"
+            - Fn::GetAtt:
+                - LambdaFunction
+                - Arn
+            - "/invocations"

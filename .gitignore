@@ -1,0 +1,4 @@
+lambda_handler
+dist/
+*.swp
+*.swo

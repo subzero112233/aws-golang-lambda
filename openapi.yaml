@@ -1,0 +1,145 @@
+openapi: "3.0.0"
+info:
+    title: "Some Service"
+    description: |
+        Specification for some service.
+    version: "0.0.1"
+    contact:
+        name: "Reshef Sharvit"
+        email: "reshefsharvit21@gmail.com"
+paths:
+    /app:
+        summary: "Dummy app"
+        get:
+            operationId: "sign-in"
+            summary: "sign in"
+            responses:
+                '200':
+                    description: |
+                        Login successful
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/HelloOutput"
+                'default':
+                    description: |
+                        Operation failed.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorOutput"    
+    /signin:
+        summary: "Signin to the service"
+        post:
+            operationId: "sign-in"
+            summary: "sign in"
+            requestBody:
+                description: "Username (email) and password"
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/SigninInput"
+            responses:
+                '200':
+                    description: |
+                        Login successful
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/SigninOutput"
+                'default':
+                    description: |
+                        Operation failed.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorOutput"
+    /signup:
+        summary: "Sign up for the service"
+        post:
+            operationId: "sign-up"
+            summary: "sign up"
+            requestBody:
+                description: "User details"
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/SignupInput"
+            responses:
+                '200':
+                    description: |
+                        Login successful
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/SignupOutput"
+                'default':
+                    description: |
+                        Operation failed.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorOutput"
+components:
+    schemas:
+        User:
+            type: "object"
+            required: ["username", "password", "first_name", "last_name", "address"]
+            properties:
+                username:
+                     type: "string"
+                password:
+                     type: "string"
+                first_name:
+                     type: "string"
+                last_name:
+                     type: "string"
+                address:
+                     type: "string"
+        SignupInput:
+            type: "object"
+            $ref: "#/components/schemas/User"
+        SigninInput:
+            type: "object"
+            required: ["username", "password"]
+            properties:
+                username:
+                     type: "string"
+                password:
+                     type: "string"
+        ErrorOutput:
+            type: "object"
+            required: ["message", "status_code"]
+            properties:
+                message:
+                     type: "string"            
+                status_code:
+                     type: "integer" 
+        SigninOutput:
+            type: "object"
+            required: ["token"]
+            properties:
+                token:
+                     type: "string"                     
+        SignupOutput:
+            type: "object"
+            required: ["message"]
+            properties:
+                message:
+                     type: "string"                     
+        HelloOutput:
+            type: "object"
+            required: ["message"]
+            properties:
+                message:
+                    type: "string"
+        ErrorOutput:
+            type: "object"
+            required: ["message", "status_code"]
+            properties:
+                message:
+                     type: "string"
+                status_code:
+                     type: "integer"                     
